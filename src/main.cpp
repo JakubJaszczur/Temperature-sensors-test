@@ -313,7 +313,7 @@ void setup()
   ConnectToWifi();
   ConnectToMQTT();
 
-  InitialiseMPC9808(2);
+  InitialiseMPC9808(3);
   InitialiseBME280();
   InitialiseSHT31();
   InitialiseAHT10();
