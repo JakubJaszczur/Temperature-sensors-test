@@ -14,5 +14,5 @@
 #define MCP9808_ADDR    0x18  //MCP9808 I2C Address
 #define SHT31_ADDR      0x44
 #define AHT10_ADDR      0x38
-
+#define TMP117_ADDR     0x48
 

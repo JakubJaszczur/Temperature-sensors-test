@@ -12,6 +12,7 @@
 #include <Adafruit_BME280.h>
 #include "Adafruit_SHT31.h"
 #include <Adafruit_AHTX0.h>
+#include <SparkFun_TMP117.h>
 
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -20,6 +21,7 @@ Adafruit_MCP9808 mcp = Adafruit_MCP9808();   // temp
 Adafruit_BME280 bme;                         // temp, hum, press
 Adafruit_SHT31 sht = Adafruit_SHT31();       // temp, hum
 Adafruit_AHTX0 aht;                          // temp, hum
+TMP117 tmp;                                  // temp
 WiFiClient espClient;
 PubSubClient mqtt(espClient);
 
@@ -247,6 +249,33 @@ float GetTemperatureAHT10()
   return temperature;
 }
 
+// SHT31 functions
+
+boolean InitialiseTMP117()
+{
+  if(!tmp.begin(TMP117_ADDR, Wire))
+  {
+    Serial.println("TMP117 Error");
+    return false;
+  }
+  else
+  {
+    Serial.println("TMP117 Initialised");
+    return true;
+  }
+}
+
+float GetTemperatureTMP117()
+{ 
+  float temperature = 0;
+
+  if(tmp.dataReady()) // Function to make sure that there is data ready to be printed, only prints temperature values when data is ready
+  {
+    temperature = tmp.readTempC();
+  }
+  return temperature;
+}
+
 // DS19B20 functions
 
 boolean InitialiseDS19B20()
@@ -273,11 +302,11 @@ float GetTemperatureDS19B20()
   return temperature;
 }
 
-String ComposeJSONmessage(float mpc, float bme, float sht, float aht, float ds)
+String ComposeJSONmessage(float mpc, float bme, float sht, float aht, float ds, float tmp)
 {
   String message;
 
-  const size_t capacity = JSON_OBJECT_SIZE(6) + 60;
+  const size_t capacity = JSON_OBJECT_SIZE(7) + 70;
   DynamicJsonDocument doc(capacity);
 
     //doc["id"] = DEV_ID;
@@ -286,6 +315,7 @@ String ComposeJSONmessage(float mpc, float bme, float sht, float aht, float ds)
     doc["sht"] = sht;
     doc["aht"] = aht;
     doc["ds"] = ds;
+    doc["tmp"] = tmp;
 
   serializeJson(doc, message);
 
@@ -317,6 +347,7 @@ void setup()
   InitialiseBME280();
   InitialiseSHT31();
   InitialiseAHT10();
+  InitialiseTMP117();
   InitialiseDS19B20();
 }
 
@@ -328,6 +359,7 @@ void loop()
   float tempBME280 = 0;
   float tempSHT31 = 0;
   float tempAHT10 = 0;
+  float tempTMP117 = 0;
   float tempDS19B20 = 0;
 
   if(actualTime - lastUpdateTime > UPDATE_INTERVAL * 1000)
@@ -336,9 +368,10 @@ void loop()
     tempBME280 = GetTemperatureBME280();
     tempSHT31 = GetTemperatureSHT31();
     tempAHT10 = GetTemperatureAHT10();
+    tempTMP117 = GetTemperatureTMP117();
     tempDS19B20 = GetTemperatureDS19B20();
 
-    Serial.println("MPC9808    BME280     SHT31     AHT10     DS19B20");
+    Serial.println("MPC9808    BME280     SHT31     AHT10     DS19B20     TMP117");
     Serial.print(tempMPC9808);
     Serial.print("      ");
     Serial.print(tempBME280);
@@ -347,9 +380,11 @@ void loop()
     Serial.print("     ");
     Serial.print(tempAHT10);
     Serial.print("     ");
-    Serial.println(tempDS19B20);
+    Serial.print(tempDS19B20);
+    Serial.print("       ");
+    Serial.println(tempTMP117);
 
-    String message = ComposeJSONmessage(tempMPC9808, tempBME280, tempSHT31, tempAHT10, tempDS19B20);
+    String message = ComposeJSONmessage(tempMPC9808, tempBME280, tempSHT31, tempAHT10, tempDS19B20, tempTMP117);
     MqttSend(message);
 
     lastUpdateTime = actualTime;
